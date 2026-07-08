@@ -173,65 +173,6 @@ curl -s -X POST \
 
 ## Adding a New Server, Tool, Resource, or Prompt
 
-### New Tool
-
-1. Create an Apex class implementing `IMCPTool`:
-
-```apex
-public class MyNewTool implements IMCPTool {
-    public String getName()        { return 'my_tool'; }
-    public String getTitle()       { return 'My Tool'; }
-    public String getDescription() { return 'Does something useful'; }
-    public String getServerName()  { return 'PCMetrics'; }
-
-    public Map<String, Object> getInputSchema() {
-        return new Map<String, Object>{
-            'type' => 'object',
-            'properties' => new Map<String, Object>{
-                'param1' => new Map<String, Object>{ 'type' => 'string', 'description' => 'A parameter' }
-            },
-            'required' => new List<String>{ 'param1' }
-        };
-    }
-
-    public Map<String, Object> call(Map<String, Object> arguments) {
-        String param1 = (String) arguments.get('param1');
-        return new Map<String, Object>{
-            'content' => new List<Object>{
-                new Map<String, Object>{ 'type' => 'text', 'text' => 'Result: ' + param1 }
-            },
-            'isError' => false
-        };
-    }
-}
-```
-
-2. Add a Custom Metadata record in `force-app/main/default/customMetadata/MCP_Tool_Registry.MyNewTool.md-meta.xml`:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata"
-    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-    <label>My New Tool</label>
-    <protected>false</protected>
-    <values>
-        <field>Apex_Class_Name__c</field>
-        <value xsi:type="xsd:string">MyNewTool</value>
-    </values>
-</CustomMetadata>
-```
-
-3. Deploy both files. The controller picks it up automatically.
-
-### New Resource
-
-Same pattern — implement `IMCPResource`, add an `MCP_Resource_Registry__mdt` record pointing to the class name.
-
-### New Prompt
-
-Same pattern — implement `IMCPPrompt`, add an `MCP_Prompt_Registry__mdt` record pointing to the class name.
-
 ### New MCP Server
 
 A "server" in this framework is a named domain exposed at its own REST URL. The `MCPServerController` (at `/services/apexrest/mcp`) acts as a discovery endpoint — it responds to `servers/list` and returns every server registered in `MCP_Server_Registry__mdt`. Each individual server then has its own dedicated `@RestResource` controller that handles all MCP methods (tools, resources, prompts) for that domain.
@@ -292,7 +233,7 @@ The controller queries `MCP_Tool_Registry__mdt`, `MCP_Resource_Registry__mdt`, a
 
 **Step 4 — Implement tools, resources, and prompts**
 
-Follow the patterns above, returning `'MyServer'` from `getServerName()` on each class, and registering each with the appropriate CMT type.
+Follow the patterns below, returning `'MyServer'` from `getServerName()` on each class, and registering each with the appropriate CMT type.
 
 **How `MCPServerController` (the discovery endpoint) works**
 
@@ -326,6 +267,67 @@ curl -s -X POST \
 ```
 
 The interfaces, CMT object definitions, and `MCPUtil` are shared across all servers — no changes to the framework are needed when adding a new server.
+
+---
+
+### New Tool
+
+1. Create an Apex class implementing `IMCPTool`:
+
+```apex
+public class MyNewTool implements IMCPTool {
+    public String getName()        { return 'my_tool'; }
+    public String getTitle()       { return 'My Tool'; }
+    public String getDescription() { return 'Does something useful'; }
+    public String getServerName()  { return 'PCMetrics'; }
+
+    public Map<String, Object> getInputSchema() {
+        return new Map<String, Object>{
+            'type' => 'object',
+            'properties' => new Map<String, Object>{
+                'param1' => new Map<String, Object>{ 'type' => 'string', 'description' => 'A parameter' }
+            },
+            'required' => new List<String>{ 'param1' }
+        };
+    }
+
+    public Map<String, Object> call(Map<String, Object> arguments) {
+        String param1 = (String) arguments.get('param1');
+        return new Map<String, Object>{
+            'content' => new List<Object>{
+                new Map<String, Object>{ 'type' => 'text', 'text' => 'Result: ' + param1 }
+            },
+            'isError' => false
+        };
+    }
+}
+```
+
+2. Add a Custom Metadata record in `force-app/main/default/customMetadata/MCP_Tool_Registry.MyNewTool.md-meta.xml`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <label>My New Tool</label>
+    <protected>false</protected>
+    <values>
+        <field>Apex_Class_Name__c</field>
+        <value xsi:type="xsd:string">MyNewTool</value>
+    </values>
+</CustomMetadata>
+```
+
+3. Deploy both files. The controller picks it up automatically.
+
+### New Resource
+
+Same pattern — implement `IMCPResource`, add an `MCP_Resource_Registry__mdt` record pointing to the class name.
+
+### New Prompt
+
+Same pattern — implement `IMCPPrompt`, add an `MCP_Prompt_Registry__mdt` record pointing to the class name.
 
 ---
 
