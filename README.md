@@ -65,12 +65,26 @@ public interface IMCPPrompt {
 }
 ```
 
+**`IMCPServer`** — describes a server registered in the discovery endpoint:
+```apex
+public interface IMCPServer {
+    String getUri();         // REST path, e.g. 'pcmetrics/mcp' — must match the @RestResource urlMapping
+    String getName();        // unique server name used to scope tools/resources/prompts
+    String getTitle();       // human-readable display name
+    String getDescription(); // what this server exposes
+    String getMimeType();    // default content type for this server's responses
+}
+```
+
+`IMCPServer` implementations are only used by the discovery endpoint (`servers/list`). They are not used by the individual server controllers — the `SERVER_NAME` constant in each controller is what links a controller to its tools, resources, and prompts at runtime.
+
 ### Custom Metadata Type Registries
 
 Three Custom Metadata Types act as the plugin registry:
 
 | CMT API Name | Field | Purpose |
 |---|---|---|
+| `MCP_Server_Registry__mdt` | `Apex_Class_Name__c` | Maps a label to an `IMCPServer` class |
 | `MCP_Tool_Registry__mdt` | `Apex_Class_Name__c` | Maps a label to an `IMCPTool` class |
 | `MCP_Resource_Registry__mdt` | `Apex_Class_Name__c` | Maps a label to an `IMCPResource` class |
 | `MCP_Prompt_Registry__mdt` | `Apex_Class_Name__c` | Maps a label to an `IMCPPrompt` class |
