@@ -234,14 +234,98 @@ Same pattern — implement `IMCPPrompt`, add an `MCP_Prompt_Registry__mdt` recor
 
 ### New MCP Server
 
-To expose a second MCP server (e.g. for a different domain):
+A "server" in this framework is a named domain exposed at its own REST URL. The `MCPServerController` (at `/services/apexrest/mcp`) acts as a discovery endpoint — it responds to `servers/list` and returns every server registered in `MCP_Server_Registry__mdt`. Each individual server then has its own dedicated `@RestResource` controller that handles all MCP methods (tools, resources, prompts) for that domain.
 
-1. Create a new `@RestResource` Apex controller at a new URL (e.g. `/services/apexrest/myserver/mcp/`)
-2. Set a unique `SERVER_NAME` constant in the controller (e.g. `'MyServer'`)
-3. Implement tools/resources/prompts with `getServerName()` returning `'MyServer'` — they will be filtered to only appear on that server's endpoints
-4. Add CMT records pointing to the new classes
+**Step 1 — Implement `IMCPServer`**
 
-The interfaces, CMT types, and `MCPUtil` are shared across all servers — no changes needed to the framework.
+```apex
+public class MyServer implements IMCPServer {
+    public String getUri()         { return 'myserver/mcp'; }
+    public String getName()        { return 'MyServer'; }
+    public String getTitle()       { return 'My Domain Server'; }
+    public String getDescription() { return 'Exposes data from my domain.'; }
+    public String getMimeType()    { return 'application/json'; }
+}
+```
+
+`getUri()` must match the URL path of the dedicated REST controller you create next.
+
+**Step 2 — Register in `MCP_Server_Registry__mdt`**
+
+Create `force-app/main/default/customMetadata/MCP_Server_Registry.MyServer.md-meta.xml`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomMetadata xmlns="http://soap.sforce.com/2006/04/metadata"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+    <label>My Server</label>
+    <protected>false</protected>
+    <values>
+        <field>Apex_Class_Name__c</field>
+        <value xsi:type="xsd:string">MyServer</value>
+    </values>
+</CustomMetadata>
+```
+
+This makes the server appear in `servers/list` responses from the discovery endpoint.
+
+**Step 3 — Create a dedicated REST controller**
+
+Each server needs its own `@RestResource` Apex class that handles MCP protocol methods. Copy `PCMetricsMCPController` as your starting point and change the `urlMapping` and `SERVER_NAME`:
+
+```apex
+@RestResource(urlMapping='/myserver/mcp/*')
+global class MyServerMCPController {
+
+    private static final String SERVER_NAME = 'MyServer';
+
+    @HttpPost
+    global static void doPost() {
+        // identical dispatch logic to PCMetricsMCPController
+        // MCPUtil, CMT queries, and all handler methods are reused as-is
+    }
+}
+```
+
+The controller queries `MCP_Tool_Registry__mdt`, `MCP_Resource_Registry__mdt`, and `MCP_Prompt_Registry__mdt` at runtime — it only returns items whose `getServerName()` matches `SERVER_NAME`, so tools/resources/prompts are automatically scoped to the correct server.
+
+**Step 4 — Implement tools, resources, and prompts**
+
+Follow the patterns above, returning `'MyServer'` from `getServerName()` on each class, and registering each with the appropriate CMT type.
+
+**How `MCPServerController` (the discovery endpoint) works**
+
+`/services/apexrest/mcp` handles one method: `servers/list`. It queries `MCP_Server_Registry__mdt`, instantiates each registered `IMCPServer` class via `Type.forName()`, and returns the server list. This lets a client discover all available servers and their endpoint URIs before connecting to any of them.
+
+```bash
+curl -s -X POST \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "MCP-Protocol-Version: 2025-11-25" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"servers/list","params":{}}' \
+  "https://<instance>.salesforce.com/services/apexrest/mcp"
+```
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "result": {
+    "servers": [
+      {
+        "uri": "pcmetrics/mcp",
+        "name": "PCMetrics",
+        "title": "PC Hardware Metrics Server",
+        "description": "Exposes live CPU, GPU, and memory metrics from a local PC.",
+        "mimeType": "application/json"
+      }
+    ]
+  }
+}
+```
+
+The interfaces, CMT object definitions, and `MCPUtil` are shared across all servers — no changes to the framework are needed when adding a new server.
 
 ---
 
