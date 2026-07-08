@@ -27,6 +27,19 @@ The controller (`PCMetricsMCPController`) receives the request, parses the JSON-
 
 Each capability type has an interface that concrete classes implement:
 
+**`IMCPServer`** — describes a server registered in the discovery endpoint:
+```apex
+public interface IMCPServer {
+    String getUri();         // REST path, e.g. 'pcmetrics/mcp' — must match the @RestResource urlMapping
+    String getName();        // unique server name used to scope tools/resources/prompts
+    String getTitle();       // human-readable display name
+    String getDescription(); // what this server exposes
+    String getMimeType();    // default content type for this server's responses
+}
+```
+
+`IMCPServer` implementations are only used by the discovery endpoint (`servers/list`). They are not used by the individual server controllers — the `SERVER_NAME` constant in each controller is what links a controller to its tools, resources, and prompts at runtime.
+
 **`IMCPTool`** — a callable action the AI can invoke:
 ```apex
 public interface IMCPTool {
@@ -64,19 +77,6 @@ public interface IMCPPrompt {
     List<Map<String, Object>> getMessages(Map<String, String> args);
 }
 ```
-
-**`IMCPServer`** — describes a server registered in the discovery endpoint:
-```apex
-public interface IMCPServer {
-    String getUri();         // REST path, e.g. 'pcmetrics/mcp' — must match the @RestResource urlMapping
-    String getName();        // unique server name used to scope tools/resources/prompts
-    String getTitle();       // human-readable display name
-    String getDescription(); // what this server exposes
-    String getMimeType();    // default content type for this server's responses
-}
-```
-
-`IMCPServer` implementations are only used by the discovery endpoint (`servers/list`). They are not used by the individual server controllers — the `SERVER_NAME` constant in each controller is what links a controller to its tools, resources, and prompts at runtime.
 
 ### Custom Metadata Type Registries
 
