@@ -1,0 +1,10 @@
+{
+  "orgName": "Apex MCP Proof of Concept",
+  "edition": "Developer",
+  "features": [],
+  "settings": {
+    "apexSettings": {
+      "enableDisableParallelApexTesting": false
+    }
+  }
+}

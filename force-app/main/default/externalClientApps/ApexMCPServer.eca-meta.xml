@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExternalClientApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+    <contactEmail>test-wnhlrno2ceec@example.com</contactEmail>
+    <description>OAuth2 client for the Apex MCP Server — used by Claude Code stdio proxy</description>
+    <distributionState>Local</distributionState>
+    <isProtected>false</isProtected>
+    <label>Apex MCP Server</label>
+</ExternalClientApplication>

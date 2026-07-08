@@ -1,0 +1,19 @@
+# Claude Code
+.claude/
+
+# Salesforce
+.sf/
+.sfdx/
+*.log
+
+# Node
+node_modules/
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / tokens
+*.sfdc-*-tokens.json
+.env
