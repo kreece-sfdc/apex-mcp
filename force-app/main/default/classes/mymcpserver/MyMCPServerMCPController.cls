@@ -1,7 +1,7 @@
-@RestResource(urlMapping='/pcmetrics/mcp/*')
-global class PCMetricsMCPController {
+@RestResource(urlMapping='/mymcpserver/mcp/*')
+global class MyMCPServerMCPController {
 
-    private static final String SERVER_NAME = 'PCMetrics';
+    private static final String SERVER_NAME = 'MyMCPServer';
 
     @HttpPost
     global static void doPost() {
@@ -70,92 +70,9 @@ global class PCMetricsMCPController {
             'id'      => null,
             'error'   => new Map<String, Object>{
                 'code'    => -32600,
-                'message' => 'Use POST /services/apexrest/pcmetrics/mcp/ with a JSON-RPC body'
+                'message' => 'Use POST /services/apexrest/mymcpserver/mcp/ with a JSON-RPC body'
             }
         }));
-    }
-
-    private static void handleResourcesList(RestResponse res, Object rpcId) {
-        List<Map<String, Object>> resources = new List<Map<String, Object>>();
-
-        for (MCP_Resource_Registry__mdt record : [
-            SELECT Apex_Class_Name__c FROM MCP_Resource_Registry__mdt ORDER BY Label
-        ]) {
-            try {
-                Type t = Type.forName(record.Apex_Class_Name__c);
-                if (t == null) continue;
-                IMCPResource instance = (IMCPResource) t.newInstance();
-                if (!SERVER_NAME.equals(instance.getServerName())) continue;
-
-                resources.add(new Map<String, Object>{
-                    'uri'         => instance.getUri(),
-                    'name'        => instance.getName(),
-                    'title'       => instance.getTitle(),
-                    'description' => instance.getDescription(),
-                    'mimeType'    => instance.getMimeType()
-                });
-            } catch (Exception e) {
-                continue;
-            }
-        }
-
-        MCPUtil.writeSuccess(res, rpcId, new Map<String, Object>{ 'resources' => resources });
-    }
-
-    private static void handleResourcesRead(RestResponse res, Object rpcId, Map<String, Object> params) {
-        String uri = (String) params.get('uri');
-        if (String.isBlank(uri)) {
-            MCPUtil.writeError(res, rpcId, -32602, 'Missing required param: uri');
-            return;
-        }
-
-        IMCPResource instance = findResource(uri);
-        if (instance == null) {
-            MCPUtil.writeError(res, rpcId, -32002, 'Resource not found: ' + uri);
-            return;
-        }
-
-        Map<String, Object> content = new Map<String, Object>{
-            'uri'      => instance.getUri(),
-            'mimeType' => instance.getMimeType()
-        };
-        if (instance.getText() != null) {
-            content.put('text', instance.getText());
-        } else if (instance.getBlob() != null) {
-            content.put('blob', instance.getBlob());
-        }
-
-        MCPUtil.writeSuccess(res, rpcId, new Map<String, Object>{
-            'contents' => new List<Object>{ content }
-        });
-    }
-
-    private static void handleResourcesReadRaw(RestResponse res, Map<String, Object> params) {
-        String uri = (String) params.get('uri');
-        if (String.isBlank(uri)) {
-            res.statusCode = 400;
-            res.addHeader('Content-Type', 'text/plain');
-            res.responseBody = Blob.valueOf('Missing required param: uri');
-            return;
-        }
-
-        IMCPResource instance = findResource(uri);
-        if (instance == null) {
-            res.statusCode = 404;
-            res.addHeader('Content-Type', 'text/plain');
-            res.responseBody = Blob.valueOf('Resource not found: ' + uri);
-            return;
-        }
-
-        res.statusCode = 200;
-        res.addHeader('Content-Type', instance.getMimeType());
-        if (instance.getText() != null) {
-            res.responseBody = Blob.valueOf(instance.getText());
-        } else if (instance.getBlob() != null) {
-            res.responseBody = EncodingUtil.base64Decode(instance.getBlob());
-        } else {
-            res.responseBody = Blob.valueOf('');
-        }
     }
 
     private static void handleInitialize(RestResponse res, Object rpcId) {
@@ -167,15 +84,77 @@ global class PCMetricsMCPController {
                 'tools'     => new Map<String, Object>()
             },
             'serverInfo' => new Map<String, Object>{
-                'name'    => 'PCMetrics',
+                'name'    => 'MyMCPServer',
                 'version' => '1.0.0'
             }
         });
     }
 
+    private static void handleResourcesList(RestResponse res, Object rpcId) {
+        List<Map<String, Object>> resources = new List<Map<String, Object>>();
+        for (MCP_Resource_Registry__mdt record : [
+            SELECT Apex_Class_Name__c FROM MCP_Resource_Registry__mdt ORDER BY Label
+        ]) {
+            try {
+                Type t = Type.forName(record.Apex_Class_Name__c);
+                if (t == null) continue;
+                IMCPResource instance = (IMCPResource) t.newInstance();
+                if (!SERVER_NAME.equals(instance.getServerName())) continue;
+                resources.add(new Map<String, Object>{
+                    'uri'         => instance.getUri(),
+                    'name'        => instance.getName(),
+                    'title'       => instance.getTitle(),
+                    'description' => instance.getDescription(),
+                    'mimeType'    => instance.getMimeType()
+                });
+            } catch (Exception e) { continue; }
+        }
+        MCPUtil.writeSuccess(res, rpcId, new Map<String, Object>{ 'resources' => resources });
+    }
+
+    private static void handleResourcesRead(RestResponse res, Object rpcId, Map<String, Object> params) {
+        String uri = (String) params.get('uri');
+        if (String.isBlank(uri)) {
+            MCPUtil.writeError(res, rpcId, -32602, 'Missing required param: uri');
+            return;
+        }
+        IMCPResource instance = findResource(uri);
+        if (instance == null) {
+            MCPUtil.writeError(res, rpcId, -32002, 'Resource not found: ' + uri);
+            return;
+        }
+        Map<String, Object> content = new Map<String, Object>{
+            'uri' => instance.getUri(), 'mimeType' => instance.getMimeType()
+        };
+        if (instance.getText() != null) { content.put('text', instance.getText()); }
+        else if (instance.getBlob() != null) { content.put('blob', instance.getBlob()); }
+        MCPUtil.writeSuccess(res, rpcId, new Map<String, Object>{ 'contents' => new List<Object>{ content } });
+    }
+
+    private static void handleResourcesReadRaw(RestResponse res, Map<String, Object> params) {
+        String uri = (String) params.get('uri');
+        if (String.isBlank(uri)) {
+            res.statusCode = 400;
+            res.addHeader('Content-Type', 'text/plain');
+            res.responseBody = Blob.valueOf('Missing required param: uri');
+            return;
+        }
+        IMCPResource instance = findResource(uri);
+        if (instance == null) {
+            res.statusCode = 404;
+            res.addHeader('Content-Type', 'text/plain');
+            res.responseBody = Blob.valueOf('Resource not found: ' + uri);
+            return;
+        }
+        res.statusCode = 200;
+        res.addHeader('Content-Type', instance.getMimeType());
+        if (instance.getText() != null) { res.responseBody = Blob.valueOf(instance.getText()); }
+        else if (instance.getBlob() != null) { res.responseBody = EncodingUtil.base64Decode(instance.getBlob()); }
+        else { res.responseBody = Blob.valueOf(''); }
+    }
+
     private static void handlePromptsList(RestResponse res, Object rpcId) {
         List<Map<String, Object>> prompts = new List<Map<String, Object>>();
-
         for (MCP_Prompt_Registry__mdt record : [
             SELECT Apex_Class_Name__c FROM MCP_Prompt_Registry__mdt ORDER BY Label
         ]) {
@@ -184,18 +163,14 @@ global class PCMetricsMCPController {
                 if (t == null) continue;
                 IMCPPrompt instance = (IMCPPrompt) t.newInstance();
                 if (!SERVER_NAME.equals(instance.getServerName())) continue;
-
                 prompts.add(new Map<String, Object>{
                     'name'        => instance.getName(),
                     'title'       => instance.getTitle(),
                     'description' => instance.getDescription(),
                     'arguments'   => instance.getArguments()
                 });
-            } catch (Exception e) {
-                continue;
-            }
+            } catch (Exception e) { continue; }
         }
-
         MCPUtil.writeSuccess(res, rpcId, new Map<String, Object>{ 'prompts' => prompts });
     }
 
@@ -205,28 +180,20 @@ global class PCMetricsMCPController {
             MCPUtil.writeError(res, rpcId, -32602, 'Missing required param: name');
             return;
         }
-
         IMCPPrompt instance = null;
-        for (MCP_Prompt_Registry__mdt record : [
-            SELECT Apex_Class_Name__c FROM MCP_Prompt_Registry__mdt
-        ]) {
+        for (MCP_Prompt_Registry__mdt record : [SELECT Apex_Class_Name__c FROM MCP_Prompt_Registry__mdt]) {
             try {
                 Type t = Type.forName(record.Apex_Class_Name__c);
                 if (t == null) continue;
                 IMCPPrompt candidate = (IMCPPrompt) t.newInstance();
                 if (!SERVER_NAME.equals(candidate.getServerName())) continue;
                 if (name.equals(candidate.getName())) { instance = candidate; break; }
-            } catch (Exception e) {
-                continue;
-            }
+            } catch (Exception e) { continue; }
         }
-
         if (instance == null) {
             MCPUtil.writeError(res, rpcId, -32602, 'Unknown prompt: ' + name);
             return;
         }
-
-        // Validate required arguments
         Map<String, String> resolvedArgs = new Map<String, String>();
         Map<String, Object> rawArgs = params.containsKey('arguments')
             ? (Map<String, Object>) params.get('arguments')
@@ -238,11 +205,8 @@ global class PCMetricsMCPController {
                 MCPUtil.writeError(res, rpcId, -32602, 'Missing required argument: ' + argName);
                 return;
             }
-            if (rawArgs.containsKey(argName)) {
-                resolvedArgs.put(argName, (String) rawArgs.get(argName));
-            }
+            if (rawArgs.containsKey(argName)) { resolvedArgs.put(argName, (String) rawArgs.get(argName)); }
         }
-
         MCPUtil.writeSuccess(res, rpcId, new Map<String, Object>{
             'description' => instance.getDescription(),
             'messages'    => instance.getMessages(resolvedArgs)
@@ -251,7 +215,6 @@ global class PCMetricsMCPController {
 
     private static void handleToolsList(RestResponse res, Object rpcId) {
         List<Map<String, Object>> tools = new List<Map<String, Object>>();
-
         for (MCP_Tool_Registry__mdt record : [
             SELECT Apex_Class_Name__c FROM MCP_Tool_Registry__mdt ORDER BY Label
         ]) {
@@ -260,18 +223,14 @@ global class PCMetricsMCPController {
                 if (t == null) continue;
                 IMCPTool instance = (IMCPTool) t.newInstance();
                 if (!SERVER_NAME.equals(instance.getServerName())) continue;
-
                 tools.add(new Map<String, Object>{
                     'name'        => instance.getName(),
                     'title'       => instance.getTitle(),
                     'description' => instance.getDescription(),
                     'inputSchema' => instance.getInputSchema()
                 });
-            } catch (Exception e) {
-                continue;
-            }
+            } catch (Exception e) { continue; }
         }
-
         MCPUtil.writeSuccess(res, rpcId, new Map<String, Object>{ 'tools' => tools });
     }
 
@@ -281,27 +240,20 @@ global class PCMetricsMCPController {
             MCPUtil.writeError(res, rpcId, -32602, 'Missing required param: name');
             return;
         }
-
         IMCPTool instance = null;
-        for (MCP_Tool_Registry__mdt record : [
-            SELECT Apex_Class_Name__c FROM MCP_Tool_Registry__mdt
-        ]) {
+        for (MCP_Tool_Registry__mdt record : [SELECT Apex_Class_Name__c FROM MCP_Tool_Registry__mdt]) {
             try {
                 Type t = Type.forName(record.Apex_Class_Name__c);
                 if (t == null) continue;
                 IMCPTool candidate = (IMCPTool) t.newInstance();
                 if (!SERVER_NAME.equals(candidate.getServerName())) continue;
                 if (name.equals(candidate.getName())) { instance = candidate; break; }
-            } catch (Exception e) {
-                continue;
-            }
+            } catch (Exception e) { continue; }
         }
-
         if (instance == null) {
             MCPUtil.writeError(res, rpcId, -32602, 'Unknown tool: ' + name);
             return;
         }
-
         Map<String, Object> arguments = params.containsKey('arguments')
             ? (Map<String, Object>) params.get('arguments')
             : new Map<String, Object>();
@@ -319,8 +271,7 @@ global class PCMetricsMCPController {
         }
 
         try {
-            Map<String, Object> result = instance.call(arguments);
-            MCPUtil.writeSuccess(res, rpcId, result);
+            MCPUtil.writeSuccess(res, rpcId, instance.call(arguments));
         } catch (Exception e) {
             MCPUtil.writeSuccess(res, rpcId, new Map<String, Object>{
                 'content' => new List<Object>{
@@ -332,18 +283,14 @@ global class PCMetricsMCPController {
     }
 
     private static IMCPResource findResource(String uri) {
-        for (MCP_Resource_Registry__mdt record : [
-            SELECT Apex_Class_Name__c FROM MCP_Resource_Registry__mdt
-        ]) {
+        for (MCP_Resource_Registry__mdt record : [SELECT Apex_Class_Name__c FROM MCP_Resource_Registry__mdt]) {
             try {
                 Type t = Type.forName(record.Apex_Class_Name__c);
                 if (t == null) continue;
                 IMCPResource instance = (IMCPResource) t.newInstance();
                 if (!SERVER_NAME.equals(instance.getServerName())) continue;
                 if (uri.equals(instance.getUri())) return instance;
-            } catch (Exception e) {
-                continue;
-            }
+            } catch (Exception e) { continue; }
         }
         return null;
     }
